@@ -1,29 +1,36 @@
 import socket
 import network
-from machine import Pin
+from machine import Pin, PWM
 
 led = Pin("LED", Pin.OUT)
 led.high()
 
+DUTY_MAX=65535
 
 class Motor():
     def __init__(self, p1, p2):
-        self.p1 = Pin(p1, Pin.OUT)
-        self.p2 = Pin(p2, Pin.OUT)
+        self.p1 = PWM(Pin(p1, Pin.OUT))
+        self.p2 = PWM(Pin(p2, Pin.OUT))
+        self.p1.freq(50)
+        self.p2.freq(50)
+        self.velocity = DUTY_MAX
 
     def stop(self):
-        self.p1.low()
-        self.p2.low()
+        self.p1.duty_u16(0)
+        self.p2.duty_u16(0)
 
     def backward(self):
         self.stop()
-        self.p1.high()
-        self.p2.low()
+        self.p1.duty_u16(self.velocity)
+        self.p2.duty_u16(0)
 
     def forward(self):
         self.stop()
-        self.p1.low()
-        self.p2.high()
+        self.p1.duty_u16(0)
+        self.p2.duty_u16(self.velocity)
+
+    def set_velocity_ratio(self, ratio):
+        self.velocity = max(0, min(DUTY_MAX, int(ratio * DUTY_MAX)))
 
 
 class MovementType():
@@ -94,6 +101,7 @@ class Movement():
     def stop(self):
         for motor in self.motors.values():
             motor.stop()
+            motor.set_velocity_ratio(1)
 
     def set_movement_type(self, mtype):
         self.stop()
@@ -229,7 +237,7 @@ html = r"""
     <div style="text-align:center; margin-top: 25px">
         <form>
             <select id="driveselect" size="3" style="width:120px;height:200px">
-                <option class="optgroup">AWD</option>
+                <option class="optgroup" selected>AWD</option>
                 <option class="optgroup">FWD</option>
                 <option class="optgroup">RWD</option>
             </select>

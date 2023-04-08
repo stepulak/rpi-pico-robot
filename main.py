@@ -5,7 +5,8 @@ from machine import Pin, PWM
 led = Pin("LED", Pin.OUT)
 led.high()
 
-DUTY_MAX=65535
+DUTY_MAX = 65535
+
 
 class Motor():
     def __init__(self, p1, p2):
@@ -33,12 +34,6 @@ class Motor():
         self.velocity = max(0, min(DUTY_MAX, int(ratio * DUTY_MAX)))
 
 
-class MovementType():
-    FWD = 1
-    RWD = 2
-    AWD = 3
-
-
 class Direction():
     NONE = 0
     FORWARD = 1
@@ -48,64 +43,89 @@ class Direction():
 
 
 class Movement():
+    TURNING_ROTATION_VEL=0.1
+
     def __init__(self):
         self.motors = {
-            Direction.RIGHT | Direction.BACKWARD: Motor(20, 21),
-            Direction.RIGHT | Direction.FORWARD: Motor(18, 19),
-            Direction.LEFT | Direction.BACKWARD: Motor(10, 11),
-            Direction.LEFT | Direction.FORWARD: Motor(12, 13),
+            Direction.RIGHT | Direction.FORWARD: Motor(20, 21),
+            Direction.RIGHT | Direction.BACKWARD: Motor(18, 19),
+            Direction.LEFT | Direction.FORWARD: Motor(10, 11),
+            Direction.LEFT | Direction.BACKWARD: Motor(12, 13),
         }
-        self.movement_type = MovementType.AWD
         self.direction = Direction.NONE
 
     def forward(self):
         if self.direction != Direction.FORWARD:
             self.stop()
         self.direction = Direction.FORWARD
-        if self.movement_type & MovementType.FWD:
-            self.motors[Direction.RIGHT | Direction.FORWARD].forward()
-            self.motors[Direction.LEFT | Direction.FORWARD].forward()
-        if self.movement_type & MovementType.RWD:
-            self.motors[Direction.LEFT | Direction.BACKWARD].forward()
-            self.motors[Direction.RIGHT | Direction.BACKWARD].forward()
+        self.motors[Direction.RIGHT | Direction.FORWARD].forward()
+        self.motors[Direction.LEFT | Direction.FORWARD].forward()
+        self.motors[Direction.LEFT | Direction.BACKWARD].forward()
+        self.motors[Direction.RIGHT | Direction.BACKWARD].forward()
 
     def backward(self):
         if self.direction != Direction.BACKWARD:
             self.stop()
         self.direction = Direction.BACKWARD
-        if self.movement_type & MovementType.FWD:
-            self.motors[Direction.RIGHT | Direction.FORWARD].backward()
-            self.motors[Direction.LEFT | Direction.FORWARD].backward()
-        if self.movement_type & MovementType.RWD:
-            self.motors[Direction.LEFT | Direction.BACKWARD].backward()
-            self.motors[Direction.RIGHT | Direction.BACKWARD].backward()
+        self.motors[Direction.RIGHT | Direction.FORWARD].backward()
+        self.motors[Direction.LEFT | Direction.FORWARD].backward()
+        self.motors[Direction.LEFT | Direction.BACKWARD].backward()
+        self.motors[Direction.RIGHT | Direction.BACKWARD].backward()
 
-    def left(self):
-        if self.direction != Direction.LEFT:
+    def left_forward(self):
+        if self.direction != Direction.LEFT | Direction.FORWARD:
             self.stop()
-        self.direction = Direction.LEFT
+        self.direction = Direction.LEFT | Direction.FORWARD
         self.motors[Direction.RIGHT | Direction.FORWARD].forward()
         self.motors[Direction.RIGHT | Direction.BACKWARD].forward()
+        self.motors[Direction.LEFT |
+                    Direction.BACKWARD].set_velocity_ratio(self.TURNING_ROTATION_VEL)
+        self.motors[Direction.LEFT | Direction.FORWARD].set_velocity_ratio(self.TURNING_ROTATION_VEL)
         self.motors[Direction.LEFT | Direction.BACKWARD].backward()
         self.motors[Direction.LEFT | Direction.FORWARD].backward()
 
-    def right(self):
-        if self.direction != Direction.RIGHT:
+    def left_backward(self):
+        if self.direction != Direction.LEFT | Direction.BACKWARD:
             self.stop()
-        self.direction = Direction.RIGHT
+        self.direction = Direction.LEFT | Direction.BACKWARD
         self.motors[Direction.RIGHT | Direction.FORWARD].backward()
         self.motors[Direction.RIGHT | Direction.BACKWARD].backward()
+        self.motors[Direction.LEFT |
+                    Direction.BACKWARD].set_velocity_ratio(self.TURNING_ROTATION_VEL)
+        self.motors[Direction.LEFT | Direction.FORWARD].set_velocity_ratio(self.TURNING_ROTATION_VEL)
         self.motors[Direction.LEFT | Direction.BACKWARD].forward()
         self.motors[Direction.LEFT | Direction.FORWARD].forward()
+
+    def right_forward(self):
+        if self.direction != Direction.RIGHT | Direction.FORWARD:
+            self.stop()
+        self.direction = Direction.RIGHT | Direction.FORWARD
+        self.motors[Direction.LEFT | Direction.BACKWARD].forward()
+        self.motors[Direction.LEFT | Direction.FORWARD].forward()
+        self.motors[Direction.RIGHT |
+                    Direction.BACKWARD].set_velocity_ratio(self.TURNING_ROTATION_VEL)
+        self.motors[Direction.RIGHT |
+                    Direction.FORWARD].set_velocity_ratio(self.TURNING_ROTATION_VEL)
+        self.motors[Direction.RIGHT | Direction.BACKWARD].backward()
+        self.motors[Direction.RIGHT | Direction.FORWARD].backward()
+
+    def right_backward(self):
+        if self.direction != Direction.RIGHT | Direction.FORWARD:
+            self.stop()
+        self.direction = Direction.RIGHT | Direction.FORWARD
+        self.motors[Direction.LEFT | Direction.BACKWARD].backward()
+        self.motors[Direction.LEFT | Direction.FORWARD].backward()
+        self.motors[Direction.RIGHT |
+                    Direction.BACKWARD].set_velocity_ratio(self.TURNING_ROTATION_VEL)
+        self.motors[Direction.RIGHT |
+                    Direction.FORWARD].set_velocity_ratio(self.TURNING_ROTATION_VEL)
+        self.motors[Direction.RIGHT | Direction.BACKWARD].forward()
+        self.motors[Direction.RIGHT | Direction.FORWARD].forward()
 
     def stop(self):
         for motor in self.motors.values():
             motor.stop()
             motor.set_velocity_ratio(1)
-
-    def set_movement_type(self, mtype):
-        self.stop()
-        self.movement_type = mtype
 
 
 movement = Movement()
@@ -205,7 +225,7 @@ html = r"""
         // create control table
         const tbl = document.createElement("table");
         tbl.style.cssText = "width:70%;height:50%;margin-left:auto;margin-right:auto;";
-        const labels = [null,"forward",null,"left",null,"right",null,"back",null];
+        const labels = ["left_forward","forward","right_forward",null,null,null,"left_backward","backward","right_backward"];
         for (let rows = 0; rows < 3; rows++) {
             const tr = tbl.insertRow();
             for (let cols = 0; cols < 3; cols++) {
@@ -226,42 +246,10 @@ html = r"""
         }
         document.body.appendChild(tbl);
         document.addEventListener("pointerup", buttonup);
-        // wheel switcher
-        function wheelswitch() {
-            const select = document.getElementById("driveselect");
-            if (select.value.length > 0) {
-                fetch("/" + select.value.toLowerCase());
-            }
-        }
     </script>
-    <div style="text-align:center; margin-top: 25px">
-        <form>
-            <select id="driveselect" size="3" style="width:120px;height:200px">
-                <option class="optgroup" selected>AWD</option>
-                <option class="optgroup">FWD</option>
-                <option class="optgroup">RWD</option>
-            </select>
-        </form>
-        <input type="button" onclick="wheelswitch()" value="Switch wheel drive!"/>
-    </div>
 </body>
 </html>
 """
-
-
-def awd():
-    movement.set_movement_type(MovementType.AWD)
-    return "200 OK", ""
-
-
-def fwd():
-    movement.set_movement_type(MovementType.FWD)
-    return "200 OK", ""
-
-
-def rwd():
-    movement.set_movement_type(MovementType.RWD)
-    return "200 OK", ""
 
 
 def stop():
@@ -279,25 +267,34 @@ def backward():
     return "200 OK", ""
 
 
-def left():
-    movement.left()
+def left_forward():
+    movement.left_forward()
     return "200 OK", ""
 
 
-def right():
-    movement.right()
+def left_backward():
+    movement.left_backward()
+    return "200 OK", ""
+
+
+def right_forward():
+    movement.right_forward()
+    return "200 OK", ""
+
+
+def right_backward():
+    movement.right_backward()
     return "200 OK", ""
 
 
 p = PicoHttpServer()
 p.register_method("/", lambda: ("200 OK", html))
-p.register_method("/awd", awd)
-p.register_method("/fwd", fwd)
-p.register_method("/rwd", rwd)
 p.register_method("/stop", stop)
 p.register_method("/forward", forward)
-p.register_method("/back", backward)
-p.register_method("/left", left)
-p.register_method("/right", right)
+p.register_method("/backward", backward)
+p.register_method("/left_forward", left_forward)
+p.register_method("/left_backward", left_backward)
+p.register_method("/right_forward", right_forward)
+p.register_method("/right_backward", right_backward)
 
 p.run()

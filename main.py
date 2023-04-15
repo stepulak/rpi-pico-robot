@@ -72,6 +72,8 @@ class Movement():
         self.motors[Direction.LEFT | Direction.BACKWARD].backward()
         self.motors[Direction.RIGHT | Direction.BACKWARD].backward()
 
+    # Front and rear wheel distance is not optimal in my case, so rotations must be done this way (after testing multiple solutions).
+    # Otherwise the best rotation is of course one side forward, the other backward...
     def left_forward(self):
         if self.direction != Direction.LEFT | Direction.FORWARD:
             self.stop()
@@ -131,6 +133,7 @@ class Movement():
 movement = Movement()
 
 
+# Listens on 192.168.4.1
 wlan = network.WLAN(network.AP_IF)
 wlan.config(essid="xxx", password="xpasswordx")
 wlan.active(True)
@@ -186,7 +189,7 @@ class PicoHttpServer():
 
         sock.close()
 
-
+# Simple interface to control the robot
 html = r"""
 <html>
 <body>

@@ -1,6 +1,6 @@
 # rpi-pico-robot
 
-Micropython source code for my homemade DIY robot.
+Micropython source code for my first homemade DIY robot.
 
 The robot consists of:
 - four 6V DC motors
